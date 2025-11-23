@@ -1,0 +1,38 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Build and Launch (use env or flags)",
+      "type": "go",
+      "request": "launch",
+      "mode": "auto",
+      "program": "${workspaceFolder}",
+      "envFile": "${workspaceFolder}/.vscode/.env",
+      "args": [
+        "-region", "${env:PCLOUD_REGION}",
+        "-email", "${env:PCLOUD_EMAIL}",
+        "-password", "${env:PCLOUD_PASSWORD}"
+      ],
+      "env": {},
+      "preLaunchTask": "go: build",
+      "buildFlags": ""
+    },
+    {
+      "name": "Run built binary (no debug)",
+      "type": "go",
+      "request": "launch",
+      "mode": "exec",
+      "program": "${workspaceFolder}/go-pcloud",
+      "envFile": "${workspaceFolder}/.vscode/.env",
+      "args": ["-region", "${env:PCLOUD_REGION}", "-email", "${env:PCLOUD_EMAIL}", "-password", "${env:PCLOUD_PASSWORD}"],
+      "preLaunchTask": "go: build"
+    },
+    {
+      "name": "Attach to Process",
+      "type": "go",
+      "request": "attach",
+      "mode": "local",
+      "processId": "${command:pickProcess}"
+    }
+  ]
+}

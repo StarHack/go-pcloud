@@ -1,0 +1,4 @@
+.DS_Store
+go-pcloud
+main.go
+build.sh
