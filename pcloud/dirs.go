@@ -71,10 +71,56 @@ func (c *Client) ListFolder(folderID int64) ([]Entry, error) {
 // Returns the folder metadata on success.
 // For known API error codes, returns a typed sentinel error (e.g., ErrFolderAlreadyExists).
 func (c *Client) CreateDirectory(parentFolderID int64, name string) (*Metadata, error) {
-	r, err := c.call("createfolder", true, true, "", map[string]any{
+	// Check if parent folder is encrypted
+	parentInfo, err := c.listFolderRaw(parentFolderID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to check parent folder: %w", err)
+	}
+	if parentInfo.Result != 0 {
+		return nil, fmt.Errorf("parent folder error: %s", parentInfo.Error)
+	}
+
+	params := map[string]any{
 		"folderid": parentFolderID,
 		"name":     name,
-	})
+	}
+
+	// If parent is encrypted, we need to encrypt the folder name and generate a key
+	if parentInfo.Metadata.Encrypted && parentInfo.Key != "" {
+		if c.keyPair == nil {
+			return nil, fmt.Errorf("crypto not initialized: cannot create folder in encrypted directory")
+		}
+
+		// Decrypt parent folder's CEK
+		parentKey, err := c.keyPair.DecryptFolderKey(parentInfo.Key)
+		if err != nil {
+			return nil, fmt.Errorf("failed to decrypt parent folder key: %w", err)
+		}
+
+		// Encrypt the folder name using parent's CEK
+		encryptedName, err := EncryptFilename(name, *parentKey)
+		if err != nil {
+			return nil, fmt.Errorf("failed to encrypt folder name: %w", err)
+		}
+		params["name"] = encryptedName
+
+		// Generate a new CEK for the new folder
+		newFolderKey, err := c.keyPair.GenerateFileKey()
+		if err != nil {
+			return nil, fmt.Errorf("failed to generate folder key: %w", err)
+		}
+
+		// Encrypt the new CEK with user's public key
+		encryptedKey, err := c.keyPair.EncryptFolderKey(*newFolderKey)
+		if err != nil {
+			return nil, fmt.Errorf("failed to encrypt folder key: %w", err)
+		}
+
+		params["encrypted"] = 1
+		params["key"] = encryptedKey
+	}
+
+	r, err := c.call("createfolder", true, true, "", params)
 	if err != nil {
 		return nil, err
 	}
@@ -126,10 +172,48 @@ func (c *Client) Rename(entry Entry, toName string) (*Metadata, error) {
 }
 
 func (c *Client) renameFile(fileID int64, toName string) (*Metadata, error) {
-	r, err := c.call("renamefile", true, true, "", map[string]any{
+	// For rename operations, we need to encrypt the new name if the file's parent folder is encrypted
+	fileInfo, err := c.StatByFileID(fileID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get file info: %w", err)
+	}
+	parentID := fileInfo["parentfolderid"].(float64)
+
+	// Check if parent folder is encrypted
+	parentInfo, err := c.listFolderRaw(int64(parentID))
+	if err != nil {
+		return nil, fmt.Errorf("failed to check parent folder: %w", err)
+	}
+	if parentInfo.Result != 0 {
+		return nil, fmt.Errorf("parent folder error: %s", parentInfo.Error)
+	}
+
+	params := map[string]any{
 		"fileid": fileID,
 		"toname": toName,
-	})
+	}
+
+	// If parent is encrypted, encrypt the new filename
+	if parentInfo.Metadata.Encrypted && parentInfo.Key != "" {
+		if c.keyPair == nil {
+			return nil, fmt.Errorf("crypto not initialized: cannot rename file in encrypted directory")
+		}
+
+		// Decrypt parent folder's CEK
+		parentKey, err := c.keyPair.DecryptFolderKey(parentInfo.Key)
+		if err != nil {
+			return nil, fmt.Errorf("failed to decrypt parent folder key: %w", err)
+		}
+
+		// Encrypt the new filename using parent's CEK
+		encryptedName, err := EncryptFilename(toName, *parentKey)
+		if err != nil {
+			return nil, fmt.Errorf("failed to encrypt filename: %w", err)
+		}
+		params["toname"] = encryptedName
+	}
+
+	r, err := c.call("renamefile", true, true, "", params)
 	if err != nil {
 		return nil, err
 	}
@@ -191,10 +275,48 @@ func (c *Client) DeleteFile(fileID int64, reqID string) (*DeleteFileResponse, er
 }
 
 func (c *Client) renameFolder(folderID int64, toName string) (*Metadata, error) {
-	r, err := c.call("renamefolder", true, true, "", map[string]any{
+	// For rename operations, we need to encrypt the new name if the folder's parent is encrypted
+	folderInfo, err := c.StatByFileID(folderID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get folder info: %w", err)
+	}
+	parentID := folderInfo["parentfolderid"].(float64)
+
+	// Check if parent folder is encrypted
+	parentInfo, err := c.listFolderRaw(int64(parentID))
+	if err != nil {
+		return nil, fmt.Errorf("failed to check parent folder: %w", err)
+	}
+	if parentInfo.Result != 0 {
+		return nil, fmt.Errorf("parent folder error: %s", parentInfo.Error)
+	}
+
+	params := map[string]any{
 		"folderid": folderID,
 		"toname":   toName,
-	})
+	}
+
+	// If parent is encrypted, encrypt the new folder name
+	if parentInfo.Metadata.Encrypted && parentInfo.Key != "" {
+		if c.keyPair == nil {
+			return nil, fmt.Errorf("crypto not initialized: cannot rename folder in encrypted directory")
+		}
+
+		// Decrypt parent folder's CEK
+		parentKey, err := c.keyPair.DecryptFolderKey(parentInfo.Key)
+		if err != nil {
+			return nil, fmt.Errorf("failed to decrypt parent folder key: %w", err)
+		}
+
+		// Encrypt the new folder name using parent's CEK
+		encryptedName, err := EncryptFilename(toName, *parentKey)
+		if err != nil {
+			return nil, fmt.Errorf("failed to encrypt folder name: %w", err)
+		}
+		params["toname"] = encryptedName
+	}
+
+	r, err := c.call("renamefolder", true, true, "", params)
 	if err != nil {
 		return nil, err
 	}
@@ -269,12 +391,42 @@ func (c *Client) Move(entry Entry, toFolderID int64) (*Metadata, error) {
 // moveFile moves a file to a different folder with a new name.
 // Prevents overwriting existing items (noover=1).
 func (c *Client) moveFile(fileID int64, toFolderID int64, toName string, noover bool) (*Metadata, error) {
+	// Check if destination folder is encrypted
+	destInfo, err := c.listFolderRaw(toFolderID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to check destination folder: %w", err)
+	}
+	if destInfo.Result != 0 {
+		return nil, fmt.Errorf("destination folder error: %s", destInfo.Error)
+	}
+
 	params := map[string]any{
 		"fileid":     fileID,
 		"tofolderid": toFolderID,
 		"toname":     toName,
 		"noover":     1,
 	}
+
+	// If destination is encrypted, encrypt the filename
+	if destInfo.Metadata.Encrypted && destInfo.Key != "" {
+		if c.keyPair == nil {
+			return nil, fmt.Errorf("crypto not initialized: cannot move file to encrypted directory")
+		}
+
+		// Decrypt destination folder's CEK
+		destKey, err := c.keyPair.DecryptFolderKey(destInfo.Key)
+		if err != nil {
+			return nil, fmt.Errorf("failed to decrypt destination folder key: %w", err)
+		}
+
+		// Encrypt the filename using destination's CEK
+		encryptedName, err := EncryptFilename(toName, *destKey)
+		if err != nil {
+			return nil, fmt.Errorf("failed to encrypt filename: %w", err)
+		}
+		params["toname"] = encryptedName
+	}
+
 	r, err := c.call("renamefile", true, true, "", params)
 	if err != nil {
 		return nil, err
@@ -303,12 +455,42 @@ func (c *Client) moveFile(fileID int64, toFolderID int64, toName string, noover 
 // moveFolder moves a folder to a different parent folder with a new name.
 // Prevents overwriting existing items (noover=1).
 func (c *Client) moveFolder(folderID int64, toFolderID int64, toName string, noover bool) (*Metadata, error) {
+	// Check if destination folder is encrypted
+	destInfo, err := c.listFolderRaw(toFolderID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to check destination folder: %w", err)
+	}
+	if destInfo.Result != 0 {
+		return nil, fmt.Errorf("destination folder error: %s", destInfo.Error)
+	}
+
 	params := map[string]any{
 		"folderid":   folderID,
 		"tofolderid": toFolderID,
 		"toname":     toName,
 		"noover":     1,
 	}
+
+	// If destination is encrypted, encrypt the folder name
+	if destInfo.Metadata.Encrypted && destInfo.Key != "" {
+		if c.keyPair == nil {
+			return nil, fmt.Errorf("crypto not initialized: cannot move folder to encrypted directory")
+		}
+
+		// Decrypt destination folder's CEK
+		destKey, err := c.keyPair.DecryptFolderKey(destInfo.Key)
+		if err != nil {
+			return nil, fmt.Errorf("failed to decrypt destination folder key: %w", err)
+		}
+
+		// Encrypt the folder name using destination's CEK
+		encryptedName, err := EncryptFilename(toName, *destKey)
+		if err != nil {
+			return nil, fmt.Errorf("failed to encrypt folder name: %w", err)
+		}
+		params["toname"] = encryptedName
+	}
+
 	r, err := c.call("renamefolder", true, true, "", params)
 	if err != nil {
 		return nil, err

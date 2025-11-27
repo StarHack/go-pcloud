@@ -19,21 +19,16 @@ import (
 // TestEncryptedRoundtrip tests uploading and downloading an encrypted file
 // using the streaming API, verifying integrity via SHA-256 of the plaintext.
 func TestEncryptedRoundtrip(t *testing.T) {
-	// Read credentials from environment
 	email := os.Getenv("PCLOUD_EMAIL")
 	password := os.Getenv("PCLOUD_PASSWORD")
 	cryptoPassword := os.Getenv("PCLOUD_CRYPTO_PASSWORD")
 	region := os.Getenv("PCLOUD_REGION")
-	targetFolder := os.Getenv("PCLOUD_ENCRYPTED_TARGET_DIR")
 
 	if email == "" || password == "" {
 		t.Skip("Skipping test: PCLOUD_EMAIL and PCLOUD_PASSWORD must be set")
 	}
 	if cryptoPassword == "" {
 		t.Skip("Skipping test: PCLOUD_CRYPTO_PASSWORD must be set for encrypted uploads")
-	}
-	if targetFolder == "" {
-		t.Skip("Skipping test: PCLOUD_ENCRYPTED_TARGET_DIR must be set to an encrypted folder ID")
 	}
 	if region == "" {
 		region = "eu"
@@ -49,6 +44,30 @@ func TestEncryptedRoundtrip(t *testing.T) {
 		t.Fatalf("login failed: %v", err)
 	}
 
+	// List root dir to find crypto folder ID
+	cryptoFolderID := int64(-1)
+	entries, err := c.ListFolder(0)
+	if err != nil {
+		t.Fatalf("list folder failed: %v", err)
+	}
+	for _, e := range entries {
+		if e.Encrypted {
+			cryptoFolderID = int64(e.FolderID)
+			break
+		}
+	}
+
+	if cryptoFolderID == -1 {
+		t.Fatalf("no encrypted folder found")
+	}
+
+	// Create an encrypted subdir for this test with a random name
+	subdirName := fmt.Sprintf("test-encrypted-%d", time.Now().UnixNano())
+	subdirMeta, err := c.CreateDirectory(cryptoFolderID, subdirName)
+	if err != nil {
+		t.Fatalf("create encrypted subdir failed: %v", err)
+	}
+
 	// Generate 5MB of random test data
 	testData := make([]byte, 5*1024*1024)
 	if _, err := io.ReadFull(rand.Reader, testData); err != nil {
@@ -56,14 +75,8 @@ func TestEncryptedRoundtrip(t *testing.T) {
 	}
 	testReader := bytes.NewReader(testData)
 
-	// Parse encrypted folder ID from environment
-	var encryptedFolderID int64
-	if _, err := fmt.Sscanf(targetFolder, "%d", &encryptedFolderID); err != nil {
-		t.Fatalf("invalid PCLOUD_ENCRYPTED_TARGET_DIR '%s': %v", targetFolder, err)
-	}
-
 	// Run the encrypted roundtrip test
-	if err := streamEncryptedUploadThenDownload(c, encryptedFolderID, testReader, testData); err != nil {
+	if err := streamEncryptedUploadThenDownload(c, int64(subdirMeta.FolderID), testReader, testData); err != nil {
 		t.Fatalf("encrypted stream upload/download roundtrip failed: %v", err)
 	}
 }
