@@ -70,7 +70,7 @@ func (c *Client) ListFolder(folderID int64) ([]Entry, error) {
 // CreateDirectory creates a new folder under parentFolderID with the given name.
 // Returns the folder metadata on success.
 // For known API error codes, returns a typed sentinel error (e.g., ErrFolderAlreadyExists).
-func (c *Client) CreateDirectory(parentFolderID int64, name string) (*Metadata, error) {
+func (c *Client) CreateDirectory(parentFolderID int64, name string) (*Entry, error) {
 	// Check if parent folder is encrypted
 	parentInfo, err := c.listFolderRaw(parentFolderID)
 	if err != nil {
@@ -164,14 +164,14 @@ func (c *Client) CreateDirectory(parentFolderID int64, name string) (*Metadata, 
 	return out.Metadata, nil
 }
 
-func (c *Client) Rename(entry Entry, toName string) (*Metadata, error) {
+func (c *Client) Rename(entry Entry, toName string) (*Entry, error) {
 	if entry.IsFolder {
 		return c.renameFolder(int64(entry.FolderID), toName)
 	}
 	return c.renameFile(int64(entry.FileID), toName)
 }
 
-func (c *Client) renameFile(fileID int64, toName string) (*Metadata, error) {
+func (c *Client) renameFile(fileID int64, toName string) (*Entry, error) {
 	// For rename operations, we need to encrypt the new name if the file's parent folder is encrypted
 	fileInfo, err := c.StatByFileID(fileID)
 	if err != nil {
@@ -238,12 +238,12 @@ func (c *Client) renameFile(fileID int64, toName string) (*Metadata, error) {
 	return out.Metadata, nil
 }
 
-func (c *Client) Delete(entry Entry, toName string) error {
+func (c *Client) Delete(entry Entry) error {
 	if entry.IsFolder {
-		_, err := c.DeleteFolderRecursive(int64(entry.FolderID), toName)
+		_, err := c.DeleteFolderRecursive(int64(entry.FolderID), "")
 		return err
 	}
-	_, err := c.DeleteFile(int64(entry.FileID), toName)
+	_, err := c.DeleteFile(int64(entry.FileID), "")
 	return err
 }
 
@@ -274,7 +274,7 @@ func (c *Client) DeleteFile(fileID int64, reqID string) (*DeleteFileResponse, er
 	return &out, nil
 }
 
-func (c *Client) renameFolder(folderID int64, toName string) (*Metadata, error) {
+func (c *Client) renameFolder(folderID int64, toName string) (*Entry, error) {
 	// For rename operations, we need to encrypt the new name if the folder's parent is encrypted
 	folderInfo, err := c.StatByFileID(folderID)
 	if err != nil {
@@ -381,7 +381,7 @@ func (c *Client) DeleteItemByEntry(e Entry) error {
 
 // Move moves a file or folder to a different folder, retaining the original name.
 // Prevents overwriting existing items (noover=1).
-func (c *Client) Move(entry Entry, toFolderID int64) (*Metadata, error) {
+func (c *Client) Move(entry Entry, toFolderID int64) (*Entry, error) {
 	if entry.IsFolder {
 		return c.moveFolder(int64(entry.FolderID), toFolderID, entry.Name, true)
 	}
@@ -390,7 +390,7 @@ func (c *Client) Move(entry Entry, toFolderID int64) (*Metadata, error) {
 
 // moveFile moves a file to a different folder with a new name.
 // Prevents overwriting existing items (noover=1).
-func (c *Client) moveFile(fileID int64, toFolderID int64, toName string, noover bool) (*Metadata, error) {
+func (c *Client) moveFile(fileID int64, toFolderID int64, toName string, noover bool) (*Entry, error) {
 	// Check if destination folder is encrypted
 	destInfo, err := c.listFolderRaw(toFolderID)
 	if err != nil {
@@ -454,7 +454,7 @@ func (c *Client) moveFile(fileID int64, toFolderID int64, toName string, noover 
 
 // moveFolder moves a folder to a different parent folder with a new name.
 // Prevents overwriting existing items (noover=1).
-func (c *Client) moveFolder(folderID int64, toFolderID int64, toName string, noover bool) (*Metadata, error) {
+func (c *Client) moveFolder(folderID int64, toFolderID int64, toName string, noover bool) (*Entry, error) {
 	// Check if destination folder is encrypted
 	destInfo, err := c.listFolderRaw(toFolderID)
 	if err != nil {

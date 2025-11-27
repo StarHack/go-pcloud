@@ -63,8 +63,8 @@ func TestEncryptedRoundtrip(t *testing.T) {
 
 	// Create an encrypted subdir for this test with a random name
 	subdirName := fmt.Sprintf("test-encrypted-%d", time.Now().UnixNano())
-	subdirMeta, err := c.CreateDirectory(cryptoFolderID, subdirName)
-	if err != nil {
+	subdir, err := c.CreateDirectory(cryptoFolderID, subdirName)
+	if err != nil || int64(subdir.FolderID) == cryptoFolderID {
 		t.Fatalf("create encrypted subdir failed: %v", err)
 	}
 
@@ -75,9 +75,14 @@ func TestEncryptedRoundtrip(t *testing.T) {
 	}
 	testReader := bytes.NewReader(testData)
 
-	// Run the encrypted roundtrip test
-	if err := streamEncryptedUploadThenDownload(c, int64(subdirMeta.FolderID), testReader, testData); err != nil {
+	// Run the encrypted roundtrip test (upload + download + verify)
+	if err := streamEncryptedUploadThenDownload(c, int64(subdir.FolderID), testReader, testData); err != nil {
 		t.Fatalf("encrypted stream upload/download roundtrip failed: %v", err)
+	}
+
+	// Delete the subdir created by this test (cleanup)
+	if err := c.Delete(*subdir); err != nil {
+		t.Fatalf("failed to delete test subdir created during test run %d: %v", subdir.FolderID, err)
 	}
 }
 
@@ -113,7 +118,7 @@ func streamEncryptedUploadThenDownload(c *pcloud.Client, folderID int64, dataRea
 		return fmt.Errorf("encrypted upload close: %w", err)
 	}
 
-	meta := w.(interface{ Metadata() *pcloud.Metadata }).Metadata()
+	meta := w.(interface{ Metadata() *pcloud.Entry }).Metadata()
 	if meta == nil {
 		return fmt.Errorf("no metadata returned from encrypted upload")
 	}

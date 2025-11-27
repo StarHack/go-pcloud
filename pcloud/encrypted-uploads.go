@@ -17,9 +17,9 @@ type UploadCreateResponse struct {
 
 // UploadSaveResponse represents the minimal useful part of upload_save
 type UploadSaveResponse struct {
-	Result   int       `json:"result"`
-	Error    string    `json:"error,omitempty"`
-	Metadata *Metadata `json:"metadata,omitempty"`
+	Result   int    `json:"result"`
+	Error    string `json:"error,omitempty"`
+	Metadata *Entry `json:"metadata,omitempty"`
 }
 
 // encryptedUploadCreate starts a multi-step upload and returns uploadid.
@@ -86,7 +86,7 @@ func (c *Client) encryptedUploadWrite(uploadID int64, offset int64, r io.Reader,
 
 // encryptedUploadSave finalizes the upload. The name should already be encrypted (Base32) when encrypted=1.
 // key must be the base64url-encoded RSA-OAEP encrypted file key (CEK). mtime is file modification time.
-func (c *Client) encryptedUploadSave(uploadID, folderID int64, name string, encrypted bool, key string, mtime time.Time) (*Metadata, error) {
+func (c *Client) encryptedUploadSave(uploadID, folderID int64, name string, encrypted bool, key string, mtime time.Time) (*Entry, error) {
 	params := map[string]any{
 		"uploadid": uploadID,
 		"folderid": folderID,

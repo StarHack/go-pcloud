@@ -74,7 +74,7 @@ type unifiedStreamWriter struct {
 	buf         []byte
 	offset      int64
 	closed      bool
-	meta        *Metadata
+	meta        *Entry
 	err         error
 	mtime       time.Time
 	isEncrypted bool
@@ -239,7 +239,7 @@ func (w *unifiedStreamWriter) Close() error {
 		}
 		if md, ok := m["metadata"].(map[string]any); ok {
 			j, _ := jsonMarshalNoEscape(md)
-			var meta Metadata
+			var meta Entry
 			if jsonUnmarshalNumbers(j, &meta) == nil {
 				w.meta = &meta
 			}
@@ -248,4 +248,4 @@ func (w *unifiedStreamWriter) Close() error {
 	return nil
 }
 
-func (w *unifiedStreamWriter) Metadata() *Metadata { return w.meta }
+func (w *unifiedStreamWriter) Metadata() *Entry { return w.meta }

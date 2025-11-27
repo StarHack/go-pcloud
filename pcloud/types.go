@@ -15,39 +15,14 @@ type RFC1123Time struct{ time.Time }
 type Int64Number int64
 
 type ListFolderResponse struct {
-	Result   int      `json:"result"`
-	Error    string   `json:"error,omitempty"`
-	Metadata Metadata `json:"metadata"`
-	Key      string   `json:"key,omitempty"` // Encrypted folder key (CEK) from API when getkey=1
-	Auth     string   `json:"auth,omitempty"`
-	Checks   any      `json:"checks,omitempty"`
-	Params   any      `json:"params,omitempty"`
-	Request  string   `json:"request,omitempty"`
-}
-
-type Metadata struct {
-	ID             string        `json:"id"`
-	FolderID       Int64Number   `json:"folderid"`
-	FileID         Int64Number   `json:"fileid,omitempty"`
-	ParentFolderID Int64Number   `json:"parentfolderid,omitempty"`
-	Name           string        `json:"name"`
-	Path           string        `json:"path"`
-	Icon           string        `json:"icon"`
-	IsFolder       bool          `json:"isfolder"`
-	IsMine         bool          `json:"ismine"`
-	IsShared       bool          `json:"isshared"`
-	IsPublic       bool          `json:"ispublic,omitempty"`
-	IsPublicRoot   bool          `json:"ispublicroot,omitempty"`
-	Encrypted      bool          `json:"encrypted,omitempty"`
-	Thumb          bool          `json:"thumb"`
-	ContentType    string        `json:"contenttype,omitempty"`
-	Category       int           `json:"category,omitempty"`
-	Size           Int64Number   `json:"size,omitempty"`
-	Hash           NumericString `json:"hash,omitempty"`
-	Comments       int           `json:"comments"`
-	Created        RFC1123Time   `json:"created"`
-	Modified       RFC1123Time   `json:"modified"`
-	Contents       []Entry       `json:"contents,omitempty"`
+	Result   int    `json:"result"`
+	Error    string `json:"error,omitempty"`
+	Metadata Entry  `json:"metadata"`
+	Key      string `json:"key,omitempty"` // Encrypted folder key (CEK) from API when getkey=1
+	Auth     string `json:"auth,omitempty"`
+	Checks   any    `json:"checks,omitempty"`
+	Params   any    `json:"params,omitempty"`
+	Request  string `json:"request,omitempty"`
 }
 
 type Entry struct {
@@ -72,26 +47,27 @@ type Entry struct {
 	ContentType    string        `json:"contenttype,omitempty"`
 	Category       int           `json:"category,omitempty"`
 	Hash           NumericString `json:"hash,omitempty"`
-	Key            string        `json:"key,omitempty"` // Encrypted folder key (CEK) from API when getkey=1
+	Key            string        `json:"key,omitempty"`      // Encrypted folder key (CEK) from API when getkey=1
+	Contents       []Entry       `json:"contents,omitempty"` // Folder contents when listing directories
 }
 
 type CreateFolderResponse struct {
-	Result   int       `json:"result"`
-	Error    string    `json:"error,omitempty"`
-	Metadata *Metadata `json:"metadata,omitempty"`
+	Result   int    `json:"result"`
+	Error    string `json:"error,omitempty"`
+	Metadata *Entry `json:"metadata,omitempty"`
 }
 
 type RenameResponse struct {
-	Result   int       `json:"result"`
-	Error    string    `json:"error,omitempty"`
-	Metadata *Metadata `json:"metadata,omitempty"`
+	Result   int    `json:"result"`
+	Error    string `json:"error,omitempty"`
+	Metadata *Entry `json:"metadata,omitempty"`
 }
 
 type DeleteFileResponse struct {
-	Result   int       `json:"result"`
-	Error    string    `json:"error,omitempty"`
-	ID       string    `json:"id,omitempty"`
-	Metadata *Metadata `json:"metadata,omitempty"`
+	Result   int    `json:"result"`
+	Error    string `json:"error,omitempty"`
+	ID       string `json:"id,omitempty"`
+	Metadata *Entry `json:"metadata,omitempty"`
 }
 
 type DeleteFolderRecursiveResponse struct {

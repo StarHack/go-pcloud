@@ -98,7 +98,7 @@ func streamUploadThenDownload(c *pcloud.Client, folderID int64, dataReader io.Re
 	if err := w.Close(); err != nil {
 		return fmt.Errorf("upload close: %w", err)
 	}
-	meta := w.(interface{ Metadata() *pcloud.Metadata }).Metadata()
+	meta := w.(interface{ Metadata() *pcloud.Entry }).Metadata()
 	if meta == nil {
 		return fmt.Errorf("no metadata returned from multi-step upload")
 	}

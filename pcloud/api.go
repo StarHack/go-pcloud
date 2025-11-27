@@ -362,7 +362,7 @@ func (c *Client) DownloadFile(fileid int64, targetFilePath string) error {
 }
 
 // UploadFile uploads a local file to the specified folder, encrypting if the folder is encrypted.
-func (c *Client) UploadFile(folderID int64, localPath string) (*Metadata, error) {
+func (c *Client) UploadFile(folderID int64, localPath string) (*Entry, error) {
 	f, err := os.Open(localPath)
 	if err != nil {
 		return nil, err
@@ -386,7 +386,7 @@ func (c *Client) UploadFile(folderID int64, localPath string) (*Metadata, error)
 		return nil, err
 	}
 
-	meta := w.(interface{ Metadata() *Metadata }).Metadata()
+	meta := w.(interface{ Metadata() *Entry }).Metadata()
 	return meta, nil
 }
 
