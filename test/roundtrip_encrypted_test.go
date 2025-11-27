@@ -7,12 +7,13 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
-	"go-pcloud/pcloud"
 	"io"
 	"os"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/StarHack/go-pcloud/pcloud"
 )
 
 // TestEncryptedRoundtrip tests uploading and downloading an encrypted file

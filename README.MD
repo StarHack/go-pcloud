@@ -115,3 +115,13 @@ func main() {
     fmt.Println("Encrypted file downloaded and decrypted successfully")
 }
 ```
+
+## Test Cases
+
+Roundtrip testcases were implemented for both, the plain and the encrypted mode.
+
+```
+go test ./test -run TestPlaintextRoundtrip
+
+go test ./test -run TestEncryptedRoundtrip
+```

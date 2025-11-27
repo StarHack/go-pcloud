@@ -6,12 +6,13 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
-	"go-pcloud/pcloud"
 	"io"
 	"os"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/StarHack/go-pcloud/pcloud"
 )
 
 // TestPlaintextRoundtrip tests uploading and downloading a plaintext file
